@@ -470,7 +470,7 @@
     <!-- الفوتر الثابت -->
     <footer>
         <div class="text-left" style="direction: ltr;">info@grisland.com</div>
-        <div class="text-right">صفحة 1 من 1</div>
+        <div class="text-right">جميع الحقوق محفوظة - للاستعمال الرسمي فقط</div>
     </footer>
 
     <!-- مودال التوقيع -->
@@ -546,9 +546,9 @@
             </div>
 
             <!-- Footer PDF -->
-            <div style="margin-top: 50px; border-top: 1px solid #ccc; padding-top: 10px; display: flex; justify-content: space-between; font-size: 12px; height: 20px;">
-                <div style="direction: ltr;">info@grisland.com</div>
-                <div>صفحة 1 من 1</div>
+            <div style="margin-top: 50px; border-top: 1px solid #ccc; padding-top: 10px; display: flex; justify-content: space-between; font-size: 12px; height: 15px;">
+                <div style="direction: ltr;">info@grisland.com - صفحة من - 0568504018</div>
+                <div>جميع الحقوق محفوظة - للاستعمال الرسمي فقط</div>
             </div>
         </div>
     </div>
@@ -789,12 +789,12 @@
                 }
             }
 
-            // بناء رأس الجدول مع إضافة عمود "عدد أيام الحضور"
+            // بناء رأس الجدول مع إضافة عمود "عدد ايام الحضور"
             let headerHTML = `<th class="w-32 sticky right-0 bg-gray-100 z-10">الموظف</th><th class="w-24">الوظيفة</th>`;
             for (let i = 1; i <= daysInMonth; i++) {
                 headerHTML += `<th class="w-8">${i}</th>`;
             }
-            headerHTML += `<th class="w-24">عدد أيام الحضور</th><th class="w-24">التوقيع</th>`;
+            headerHTML += `<th class="w-24">عدد ايام الحضور</th><th class="w-24">التوقيع</th>`;
             tableHead.innerHTML = headerHTML;
 
             tableBody.innerHTML = '';
@@ -807,8 +807,8 @@
                 const tr = document.createElement('tr');
                 let rowHTML = `<td class="sticky right-0 bg-white font-bold z-10">${emp.name}</td><td>${emp.role}</td>`;
                 
-                // حساب عدد أيام الحضور
-                let attendanceDays = daysInMonth; // البدء بعدد أيام الشهر
+                // حساب عدد ايام الحضور - التعديل هنا: V لا يخصم من عدد ايام الحضور
+                let attendanceDays = 0; // البدء من الصفر
                 
                 for (let i = 1; i <= daysInMonth; i++) {
                     const status = siteAttendance[index] && siteAttendance[index][i] ? siteAttendance[index][i] : 'P'; // القيمة الافتراضية P
@@ -827,13 +827,13 @@
                         rowHTML += `<td class="text-gray-600 font-bold">${status || 'P'}</td>`;
                     }
                     
-                    // حساب أيام الحضور - خصم الأيام غير P
-                    if (status !== 'P') {
-                        attendanceDays--;
+                    // حساب ايام الحضور - التعديل هنا: فقط P و V تعتبر حضور (V إجازة لا تخصم)
+                    if (status === 'P' || status === 'V') {
+                        attendanceDays++;
                     }
                 }
                 
-                // إضافة عمود عدد أيام الحضور
+                // إضافة عمود عدد ايام الحضور
                 rowHTML += `<td class="attendance-days" id="attendance-days-${index}">${attendanceDays}</td>`;
                 
                 // إضافة عمود التوقيع مع إمكانية إضافة توقيع جديد
@@ -860,29 +860,39 @@
                 
                 tr.innerHTML = rowHTML;
                 tableBody.appendChild(tr);
+                
+                // تحديث عدد ايام الحضور بعد بناء الصف
+                updateAttendanceDaysForRow(index, daysInMonth);
             });
         }
 
-        // تحديث عدد أيام الحضور عند تغيير حالة الحضور
+        // تحديث عدد ايام الحضور عند تغيير حالة الحضور
         function updateAttendanceDays(selectElement, empIndex, daysInMonth) {
-            const row = selectElement.closest('tr');
+            updateAttendanceDaysForRow(empIndex, daysInMonth);
+            markUnsaved();
+        }
+
+        // دالة مساعدة لتحديث عدد ايام الحضور لصف معين
+        function updateAttendanceDaysForRow(empIndex, daysInMonth) {
+            const row = document.querySelector(`tr:nth-child(${empIndex + 1})`);
+            if (!row) return;
+            
             const daySelects = row.querySelectorAll('.attendance-select');
             
-            let attendanceDays = daysInMonth; // البدء بعدد أيام الشهر
+            let attendanceDays = 0; // البدء من الصفر
             
             daySelects.forEach(select => {
-                if (select.value !== 'P') {
-                    attendanceDays--;
+                // التعديل هنا: P و V تعتبر حضور (V إجازة لا تخصم)
+                if (select.value === 'P' || select.value === 'V') {
+                    attendanceDays++;
                 }
             });
             
-            // تحديث عرض عدد أيام الحضور
+            // تحديث عرض عدد ايام الحضور
             const attendanceDaysElement = document.getElementById(`attendance-days-${empIndex}`);
             if (attendanceDaysElement) {
                 attendanceDaysElement.textContent = attendanceDays;
             }
-            
-            markUnsaved();
         }
 
         let unsavedChanges = false;
@@ -915,6 +925,9 @@
             
             unsavedChanges = false;
             showToast('تم حفظ البيانات وتقديم التقرير بنجاح.', 'success');
+            
+            // التعديل هنا: إعادة تحميل الجدول فقط بدلاً من إغلاق الشاشة
+            loadAttendanceTable();
         }
 
         function approveReport(type) {
